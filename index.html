@@ -1,201 +1,360 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VR - Esfera Quicando (Babylon.js)</title>
-  <style>
-    html, body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: #000;
-      font-family: sans-serif;
-    }
-    #renderCanvas {
-      width: 100%;
-      height: 100%;
-      touch-action: none;
-      display: block;
-    }
-    #info {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: #fff;
-      background: rgba(0,0,0,0.5);
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 14px;
-      z-index: 10;
-      pointer-events: none;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Painel de Monitoramento do Motor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --azul-escuro: #0A1F3D;
+    --azul: #17335C;
+    --azul-suave: #3B5A85;
+    --preto: #101214;
+    --branco: #FFFFFF;
+    --cinza-bg: #F4F6F9;
+    --cinza-borda: #E3E7EE;
+    --cinza-texto: #6B7482;
+    --ok: #2E9E5B;
+    --atencao: #C98A1E;
+    --critico: #C0392B;
+  }
+
+  * { box-sizing: border-box; }
+
+  body{
+    margin: 0;
+    padding: 40px;
+    background: var(--cinza-bg);
+    font-family: 'Inter', sans-serif;
+    color: var(--preto);
+    min-height: 100vh;
+  }
+
+  .container{
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  /* ---------- Cabeçalho ---------- */
+  .header-row{
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  h1{
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--azul-escuro);
+    margin: 0 0 2px 0;
+  }
+
+  .subtitle{
+    font-size: 13px;
+    color: var(--cinza-texto);
+    margin: 0;
+  }
+
+  .live-badge{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--azul-escuro);
+    background: var(--branco);
+    border: 1px solid var(--cinza-borda);
+    padding: 7px 14px;
+    border-radius: 20px;
+  }
+
+  .live-dot{
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 0 3px rgba(46,158,91,0.15);
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  /* ---------- Filtro (chip estilo da imagem de referência) ---------- */
+  .filter-block{
+    margin-bottom: 22px;
+  }
+
+  .filter-label{
+    font-size: 11px;
+    color: var(--cinza-texto);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  .filter-chip{
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--branco);
+    border: 1px solid var(--azul-suave);
+    color: var(--azul-escuro);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 8px;
+  }
+
+  .filter-chip .close-x{
+    color: var(--azul-suave);
+    font-weight: 700;
+    cursor: default;
+    font-size: 13px;
+  }
+
+  /* ---------- Cartões de métricas ---------- */
+  .cards{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  @media (max-width: 720px){
+    .cards{ grid-template-columns: 1fr; }
+  }
+
+  .card{
+    background: var(--branco);
+    border: 1px solid var(--cinza-borda);
+    border-radius: 10px;
+    padding: 26px 20px 20px 20px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 1px 2px rgba(16,18,20,0.04);
+    border-top: 3px solid var(--azul-escuro);
+    transition: border-top-color 0.3s ease;
+  }
+
+  .card .status-pill{
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 3px 8px;
+    border-radius: 12px;
+    color: var(--branco);
+    background: var(--ok);
+    transition: background 0.3s ease;
+  }
+
+  .card .value-row{
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .card .value{
+    font-size: 44px;
+    font-weight: 800;
+    color: var(--azul-escuro);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .card .unit{
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--azul-suave);
+  }
+
+  .card .label{
+    font-size: 13px;
+    color: var(--cinza-texto);
+    font-weight: 500;
+  }
+
+  .card .bar-track{
+    margin-top: 16px;
+    height: 6px;
+    border-radius: 4px;
+    background: var(--cinza-bg);
+    overflow: hidden;
+  }
+
+  .card .bar-fill{
+    height: 100%;
+    width: 0%;
+    background: var(--azul-escuro);
+    border-radius: 4px;
+    transition: width 0.6s ease, background 0.3s ease;
+  }
+
+  .card .range-row{
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--cinza-texto);
+    margin-top: 6px;
+  }
+
+  footer{
+    margin-top: 26px;
+    font-size: 11px;
+    color: var(--cinza-texto);
+    text-align: right;
+  }
+</style>
 </head>
 <body>
-  <div id="info">Clique na esfera para mudar a cor. Use o botão VR (canto inferior direito) se tiver um headset.</div>
-  <canvas id="renderCanvas"></canvas>
 
-  <!-- Babylon.js via CDN -->
-  <script src="https://cdn.babylonjs.com/babylon.js"></script>
-  <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+  <div class="container">
 
-  <script>
-    const canvas = document.getElementById("renderCanvas");
-    const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    <div class="header-row">
+      <div>
+        <h1>Painel de Monitoramento do Motor</h1>
+        <p class="subtitle">Motor Elétrico M-102 · Leituras simuladas em tempo real</p>
+      </div>
+      <div class="live-badge">
+        <span class="live-dot" id="liveDot"></span>
+        <span id="liveLabel">Operação normal</span>
+      </div>
+    </div>
 
-    const createScene = async function () {
-      const scene = new BABYLON.Scene(engine);
-      scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.08, 1);
+    <div class="filter-block">
+      <div class="filter-label">Período de leitura</div>
+      <div class="filter-chip">
+        Últimas 24 horas
+        <span class="close-x">&times;</span>
+      </div>
+    </div>
 
-      // ----- Câmera (fallback não-VR) -----
-      const camera = new BABYLON.ArcRotateCamera(
-        "camera",
-        -Math.PI / 2,
-        Math.PI / 2.5,
-        6,
-        new BABYLON.Vector3(0, 1, 0),
-        scene
-      );
-      camera.attachControl(canvas, true);
-      camera.lowerRadiusLimit = 2;
-      camera.upperRadiusLimit = 15;
+    <div class="cards">
 
-      // ----- Iluminação -----
-      const hemiLight = new BABYLON.HemisphericLight(
-        "hemiLight",
-        new BABYLON.Vector3(0, 1, 0),
-        scene
-      );
-      hemiLight.intensity = 0.7;
+      <div class="card" id="cardTemp">
+        <span class="status-pill" id="pillTemp">NORMAL</span>
+        <div class="value-row">
+          <span class="value" id="valTemp">--</span>
+          <span class="unit">°C</span>
+        </div>
+        <div class="label">Temperatura do Motor</div>
+        <div class="bar-track"><div class="bar-fill" id="barTemp"></div></div>
+        <div class="range-row"><span>20</span><span>110</span></div>
+      </div>
 
-      const dirLight = new BABYLON.DirectionalLight(
-        "dirLight",
-        new BABYLON.Vector3(-1, -2, -1),
-        scene
-      );
-      dirLight.position = new BABYLON.Vector3(5, 10, 5);
-      dirLight.intensity = 0.6;
+      <div class="card" id="cardVib">
+        <span class="status-pill" id="pillVib">NORMAL</span>
+        <div class="value-row">
+          <span class="value" id="valVib">--</span>
+          <span class="unit">mm/s</span>
+        </div>
+        <div class="label">Vibração</div>
+        <div class="bar-track"><div class="bar-fill" id="barVib"></div></div>
+        <div class="range-row"><span>0</span><span>12</span></div>
+      </div>
 
-      // ----- Chão -----
-      const ground = BABYLON.MeshBuilder.CreateGround(
-        "ground",
-        { width: 20, height: 20, subdivisions: 20 },
-        scene
-      );
-      const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
-      groundMat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.18);
-      groundMat.specularColor = new BABYLON.Color3(0, 0, 0);
+      <div class="card" id="cardCurr">
+        <span class="status-pill" id="pillCurr">NORMAL</span>
+        <div class="value-row">
+          <span class="value" id="valCurr">--</span>
+          <span class="unit">A</span>
+        </div>
+        <div class="label">Corrente Elétrica</div>
+        <div class="bar-track"><div class="bar-fill" id="barCurr"></div></div>
+        <div class="range-row"><span>0</span><span>55</span></div>
+      </div>
 
-      ground.material = groundMat;
-      ground.receiveShadows = true;
+    </div>
 
-      // ----- Esfera que pula -----
-      const sphere = BABYLON.MeshBuilder.CreateSphere(
-        "bouncingSphere",
-        { diameter: 1, segments: 32 },
-        scene
-      );
+    <footer id="updatedAt">Atualizado agora</footer>
 
-      const baseY = 0.5; // altura de repouso (raio da esfera)
-      const jumpHeight = 2; // altura máxima do pulo
-      sphere.position = new BABYLON.Vector3(0, baseY, 0);
+  </div>
 
-      const sphereMat = new BABYLON.StandardMaterial("sphereMat", scene);
-      sphereMat.diffuseColor = new BABYLON.Color3(0.2, 0.6, 1);
-      sphereMat.emissiveColor = new BABYLON.Color3(0.05, 0.2, 0.4);
-      sphereMat.specularColor = new BABYLON.Color3(1, 1, 1);
-      sphere.material = sphereMat;
+<script>
+  const COLOR = {
+    ok: getComputedStyle(document.documentElement).getPropertyValue('--ok').trim(),
+    atencao: getComputedStyle(document.documentElement).getPropertyValue('--atencao').trim(),
+    critico: getComputedStyle(document.documentElement).getPropertyValue('--critico').trim(),
+    azulEscuro: getComputedStyle(document.documentElement).getPropertyValue('--azul-escuro').trim()
+  };
 
-      // Sombra simples (opcional, usando ShadowGenerator)
-      const shadowGenerator = new BABYLON.ShadowGenerator(1024, dirLight);
-      shadowGenerator.addShadowCaster(sphere);
-      shadowGenerator.usePoissonSampling = true;
-
-      // ----- Animação de "quique" (bounce) -----
-      const fps = 30;
-      const bounceAnimation = new BABYLON.Animation(
-        "bounceAnimation",
-        "position.y",
-        fps,
-        BABYLON.Animation.ANIMATIONTYPE_FLOAT,
-        BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
-      );
-
-      const keys = [
-        { frame: 0, value: baseY },
-        { frame: fps * 0.5, value: baseY + jumpHeight },
-        { frame: fps * 1, value: baseY }
-      ];
-      bounceAnimation.setKeys(keys);
-
-      // Easing tipo "bounce" para simular gravidade/quique realista
-      const easingFunction = new BABYLON.BounceEase(2, 3);
-      easingFunction.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEOUT);
-      bounceAnimation.setEasingFunction(easingFunction);
-
-      sphere.animations = [];
-      sphere.animations.push(bounceAnimation);
-
-      scene.beginAnimation(sphere, 0, fps * 1, true);
-
-      // Leve rotação para dar vida ao objeto
-      scene.onBeforeRenderObservable.add(() => {
-        sphere.rotation.y += 0.01;
-      });
-
-      // ----- Interatividade: clique/olhar para mudar cor -----
-      const colors = [
-        new BABYLON.Color3(0.2, 0.6, 1),
-        new BABYLON.Color3(1, 0.3, 0.3),
-        new BABYLON.Color3(0.3, 1, 0.4),
-        new BABYLON.Color3(1, 0.8, 0.2),
-        new BABYLON.Color3(0.7, 0.3, 1)
-      ];
-      let colorIndex = 0;
-
-      sphere.actionManager = new BABYLON.ActionManager(scene);
-      sphere.actionManager.registerAction(
-        new BABYLON.ExecuteCodeAction(
-          BABYLON.ActionManager.OnPickTrigger,
-          () => {
-            colorIndex = (colorIndex + 1) % colors.length;
-            sphereMat.diffuseColor = colors[colorIndex];
-            sphereMat.emissiveColor = colors[colorIndex].scale(0.3);
-          }
-        )
-      );
-
-      // ----- WebXR (VR) -----
-      try {
-        const xrHelper = await scene.createDefaultXRExperienceAsync({
-          floorMeshes: [ground]
-        });
-
-        // Permite selecionar/interagir com a esfera usando o controle VR (raycast/pointer)
-        if (xrHelper.baseExperience) {
-          xrHelper.pointerSelection = xrHelper.pointerSelection || null;
-        }
-      } catch (e) {
-        console.warn("WebXR não disponível neste navegador/dispositivo:", e);
-      }
-
-      return scene;
+  function buildMetric(prefix, min, max, warnFrom, critFrom) {
+    return {
+      valueEl: document.getElementById('val' + prefix),
+      barEl: document.getElementById('bar' + prefix),
+      pillEl: document.getElementById('pill' + prefix),
+      cardEl: document.getElementById('card' + prefix),
+      min, max, warnFrom, critFrom
     };
+  }
 
-    let sceneInstance;
-    createScene().then((scene) => {
-      sceneInstance = scene;
-      engine.runRenderLoop(() => {
-        scene.render();
-      });
-    });
+  const metrics = {
+    Temp: buildMetric('Temp', 20, 110, 80, 92),
+    Vib:  buildMetric('Vib', 0, 12, 4.5, 7),
+    Curr: buildMetric('Curr', 0, 55, 35, 43)
+  };
 
-    window.addEventListener("resize", () => {
-      engine.resize();
-    });
-  </script>
+  function updateMetric(m, value) {
+    const clamped = Math.max(m.min, Math.min(m.max, value));
+    const pct = ((clamped - m.min) / (m.max - m.min)) * 100;
+
+    m.valueEl.textContent = clamped.toFixed(1);
+    m.barEl.style.width = pct + '%';
+
+    let status = 'NORMAL', color = COLOR.ok;
+    if (clamped >= m.critFrom) { status = 'CRÍTICO'; color = COLOR.critico; }
+    else if (clamped >= m.warnFrom) { status = 'ATENÇÃO'; color = COLOR.atencao; }
+
+    m.pillEl.textContent = status;
+    m.pillEl.style.background = color;
+    m.barEl.style.background = color;
+    m.cardEl.style.borderTopColor = color;
+
+    return status;
+  }
+
+  let t = 0;
+  function simulate() {
+    t += 0.12;
+    const temp = 64 + Math.sin(t) * 10 + (Math.random() - 0.5) * 4;
+    const vib  = 3 + Math.sin(t * 1.4 + 1) * 1.6 + (Math.random() - 0.5) * 0.8;
+    const curr = 28 + Math.sin(t * 0.8 + 2) * 8 + (Math.random() - 0.5) * 3;
+
+    const s1 = updateMetric(metrics.Temp, temp);
+    const s2 = updateMetric(metrics.Vib, vib);
+    const s3 = updateMetric(metrics.Curr, curr);
+
+    const statuses = [s1, s2, s3];
+    const liveDot = document.getElementById('liveDot');
+    const liveLabel = document.getElementById('liveLabel');
+
+    if (statuses.includes('CRÍTICO')) {
+      liveDot.style.background = COLOR.critico;
+      liveDot.style.boxShadow = '0 0 0 3px rgba(192,57,43,0.15)';
+      liveLabel.textContent = 'Atenção: condição crítica';
+    } else if (statuses.includes('ATENÇÃO')) {
+      liveDot.style.background = COLOR.atencao;
+      liveDot.style.boxShadow = '0 0 0 3px rgba(201,138,30,0.15)';
+      liveLabel.textContent = 'Monitorar: valores elevados';
+    } else {
+      liveDot.style.background = COLOR.ok;
+      liveDot.style.boxShadow = '0 0 0 3px rgba(46,158,91,0.15)';
+      liveLabel.textContent = 'Operação normal';
+    }
+
+    document.getElementById('updatedAt').textContent =
+      'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour12: false });
+  }
+
+  simulate();
+  setInterval(simulate, 1200);
+</script>
+
 </body>
 </html>
