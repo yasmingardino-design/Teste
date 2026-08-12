@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VR - Esfera Quicando (Babylon.js)</title>
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: sans-serif;
+    }
+    #renderCanvas {
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      display: block;
+    }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #fff;
+      background: rgba(0,0,0,0.5);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">Clique na esfera para mudar a cor. Use o botão VR (canto inferior direito) se tiver um headset.</div>
+  <canvas id="renderCanvas"></canvas>
+
+  <!-- Babylon.js via CDN -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+  <script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+
+    const createScene = async function () {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.08, 1);
+
+      // ----- Câmera (fallback não-VR) -----
+      const camera = new BABYLON.ArcRotateCamera(
+        "camera",
+        -Math.PI / 2,
+        Math.PI / 2.5,
+        6,
+        new BABYLON.Vector3(0, 1, 0),
+        scene
+      );
+      camera.attachControl(canvas, true);
+      camera.lowerRadiusLimit = 2;
+      camera.upperRadiusLimit = 15;
+
+      // ----- Iluminação -----
+      const hemiLight = new BABYLON.HemisphericLight(
+        "hemiLight",
+        new BABYLON.Vector3(0, 1, 0),
+        scene
+      );
+      hemiLight.intensity = 0.7;
+
+      const dirLight = new BABYLON.DirectionalLight(
+        "dirLight",
+        new BABYLON.Vector3(-1, -2, -1),
+        scene
+      );
+      dirLight.position = new BABYLON.Vector3(5, 10, 5);
+      dirLight.intensity = 0.6;
+
+      // ----- Chão -----
+      const ground = BABYLON.MeshBuilder.CreateGround(
+        "ground",
+        { width: 20, height: 20, subdivisions: 20 },
+        scene
+      );
+      const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+      groundMat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.18);
+      groundMat.specularColor = new BABYLON.Color3(0, 0, 0);
+
+      ground.material = groundMat;
+      ground.receiveShadows = true;
+
+      // ----- Esfera que pula -----
+      const sphere = BABYLON.MeshBuilder.CreateSphere(
+        "bouncingSphere",
+        { diameter: 1, segments: 32 },
+        scene
+      );
+
+      const baseY = 0.5; // altura de repouso (raio da esfera)
+      const jumpHeight = 2; // altura máxima do pulo
+      sphere.position = new BABYLON.Vector3(0, baseY, 0);
+
+      const sphereMat = new BABYLON.StandardMaterial("sphereMat", scene);
+      sphereMat.diffuseColor = new BABYLON.Color3(0.2, 0.6, 1);
+      sphereMat.emissiveColor = new BABYLON.Color3(0.05, 0.2, 0.4);
+      sphereMat.specularColor = new BABYLON.Color3(1, 1, 1);
+      sphere.material = sphereMat;
+
+      // Sombra simples (opcional, usando ShadowGenerator)
+      const shadowGenerator = new BABYLON.ShadowGenerator(1024, dirLight);
+      shadowGenerator.addShadowCaster(sphere);
+      shadowGenerator.usePoissonSampling = true;
+
+      // ----- Animação de "quique" (bounce) -----
+      const fps = 30;
+      const bounceAnimation = new BABYLON.Animation(
+        "bounceAnimation",
+        "position.y",
+        fps,
+        BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+        BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+      );
+
+      const keys = [
+        { frame: 0, value: baseY },
+        { frame: fps * 0.5, value: baseY + jumpHeight },
+        { frame: fps * 1, value: baseY }
+      ];
+      bounceAnimation.setKeys(keys);
+
+      // Easing tipo "bounce" para simular gravidade/quique realista
+      const easingFunction = new BABYLON.BounceEase(2, 3);
+      easingFunction.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEOUT);
+      bounceAnimation.setEasingFunction(easingFunction);
+
+      sphere.animations = [];
+      sphere.animations.push(bounceAnimation);
+
+      scene.beginAnimation(sphere, 0, fps * 1, true);
+
+      // Leve rotação para dar vida ao objeto
+      scene.onBeforeRenderObservable.add(() => {
+        sphere.rotation.y += 0.01;
+      });
+
+      // ----- Interatividade: clique/olhar para mudar cor -----
+      const colors = [
+        new BABYLON.Color3(0.2, 0.6, 1),
+        new BABYLON.Color3(1, 0.3, 0.3),
+        new BABYLON.Color3(0.3, 1, 0.4),
+        new BABYLON.Color3(1, 0.8, 0.2),
+        new BABYLON.Color3(0.7, 0.3, 1)
+      ];
+      let colorIndex = 0;
+
+      sphere.actionManager = new BABYLON.ActionManager(scene);
+      sphere.actionManager.registerAction(
+        new BABYLON.ExecuteCodeAction(
+          BABYLON.ActionManager.OnPickTrigger,
+          () => {
+            colorIndex = (colorIndex + 1) % colors.length;
+            sphereMat.diffuseColor = colors[colorIndex];
+            sphereMat.emissiveColor = colors[colorIndex].scale(0.3);
+          }
+        )
+      );
+
+      // ----- WebXR (VR) -----
+      try {
+        const xrHelper = await scene.createDefaultXRExperienceAsync({
+          floorMeshes: [ground]
+        });
+
+        // Permite selecionar/interagir com a esfera usando o controle VR (raycast/pointer)
+        if (xrHelper.baseExperience) {
+          xrHelper.pointerSelection = xrHelper.pointerSelection || null;
+        }
+      } catch (e) {
+        console.warn("WebXR não disponível neste navegador/dispositivo:", e);
+      }
+
+      return scene;
+    };
+
+    let sceneInstance;
+    createScene().then((scene) => {
+      sceneInstance = scene;
+      engine.runRenderLoop(() => {
+        scene.render();
+      });
+    });
+
+    window.addEventListener("resize", () => {
+      engine.resize();
+    });
+  </script>
+</body>
+</html>
